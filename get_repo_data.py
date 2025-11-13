@@ -62,7 +62,7 @@ with open(tracked_repos) as f:
                 print(bins)
 
                 # Add custom has_binary field to JSON
-                if (bins == ""):
+                if not bins:
                     repo_data_json['has_binary'] = ""
                 else:
                     repo_data_json['has_binary'] = ", ".join(bins)
@@ -85,7 +85,7 @@ with open(tracked_repos) as f:
                 repo_data_json_text = json.dumps(repo_data_json)
                 repo_data.append(repo_data_json_text)
             else:
-                print("ERROR: Can not access " + value)
+                print("ERROR: Can not access " + project)
             
 # Build final JSON (data.json)            
 data = ",".join(repo_data)             
