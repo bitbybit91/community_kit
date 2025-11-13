@@ -1,0 +1,33 @@
+[Unit]
+Description=Community Kit VPS - Credential Scanner with Hidden Service Support
+After=network.target tor.service
+Wants=tor.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/community_kit
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+EnvironmentFile=/opt/community_kit/config.env
+
+# Run the VPS scanner
+ExecStart=/usr/bin/python3 /opt/community_kit/get_repo_data_vps.py
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=community-kit-vps
+
+# Security settings
+PrivateTmp=yes
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/community_kit/reports /opt/community_kit/data.json
+
+# Resource limits
+TimeoutStartSec=3600
+MemoryLimit=2G
+
+[Install]
+WantedBy=multi-user.target

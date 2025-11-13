@@ -86,6 +86,7 @@ TELEGRAM_NOTIFY_ON_ERROR=true
 
 - **[VPS_SETUP.md](VPS_SETUP.md)** - Complete setup guide with step-by-step instructions
 - **[CREDENTIAL_EXTRACTION.md](CREDENTIAL_EXTRACTION.md)** - Credential detection and reporting
+- **[SYSTEMD_SERVICE.md](SYSTEMD_SERVICE.md)** - **NEW**: Automated execution with systemd
 - **[README.md](README.md)** - Original Community Kit documentation
 
 ## 🎯 Use Cases
@@ -102,8 +103,23 @@ For complete anonymity on VPS with hidden services:
 USE_TOR=true python3 get_repo_data_vps.py
 ```
 
-### Automated Updates
-Set up cron jobs for automatic daily updates:
+### Automated Execution (Systemd Service) ⭐ NEW
+Set up automatic scanning every 2 hours with systemd:
+```bash
+# Quick install (as root)
+sudo ./install-systemd.sh
+
+# View status
+systemctl status community-kit-vps.timer
+
+# View logs
+journalctl -u community-kit-vps.service -f
+```
+
+See **[SYSTEMD_SERVICE.md](SYSTEMD_SERVICE.md)** for complete setup and usage.
+
+### Automated Updates (Cron Alternative)
+Or use cron jobs for automatic updates:
 ```bash
 0 2 * * * cd /opt/community_kit && python3 get_repo_data_vps.py
 ```
