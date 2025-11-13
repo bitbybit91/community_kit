@@ -1,0 +1,16 @@
+[Unit]
+Description=Community Kit VPS Scanner Timer - Runs every 2 hours
+Requires=community-kit-vps.service
+
+[Timer]
+# Run every 2 hours
+OnCalendar=*:0/2:00
+# Run 5 minutes after boot if timer was missed
+OnBootSec=5min
+# Randomize start time by up to 5 minutes to reduce system load spikes
+RandomizedDelaySec=5min
+# Keep track of last run time
+Persistent=true
+
+[Install]
+WantedBy=timers.target
