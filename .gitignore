@@ -115,6 +115,9 @@ test_config.env
 # Test files
 test_*.py
 
+# Reports directory with sensitive data
+reports/
+
 # Spyder project settings
 .spyderproject
 .spyproject

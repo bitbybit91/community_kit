@@ -33,6 +33,8 @@ python3 get_repo_data_vps.py
 - **🔧 Bug Fixes**: All known bugs in the original code have been fixed
 - **🧅 Tor Support**: Route all traffic through Tor for complete anonymity
 - **📱 Telegram Notifications**: Real-time updates via Telegram bot
+- **🔐 Credential Extraction**: Automatic detection and reporting of sensitive data
+- **💾 Local Reports**: Store findings in JSON format in reports directory
 - **🔒 Secure Config**: Environment-based configuration management
 - **📊 Better Logging**: Enhanced error reporting and progress tracking
 - **🌐 Hidden Services**: Full support for VPS deployment with hidden services
@@ -65,6 +67,10 @@ GITHUB_TOKEN=your_token_here
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
 
+# Hidden Service Configuration
+HIDDEN_SERVICE_ADDRESS=your_service.onion
+HIDDEN_SERVICE_NAME=my_scanner
+
 # Tor Configuration
 USE_TOR=true  # Set to 'false' to disable
 TOR_PROXY_HOST=127.0.0.1
@@ -79,6 +85,7 @@ TELEGRAM_NOTIFY_ON_ERROR=true
 ## 📖 Documentation
 
 - **[VPS_SETUP.md](VPS_SETUP.md)** - Complete setup guide with step-by-step instructions
+- **[CREDENTIAL_EXTRACTION.md](CREDENTIAL_EXTRACTION.md)** - Credential detection and reporting
 - **[README.md](README.md)** - Original Community Kit documentation
 
 ## 🎯 Use Cases

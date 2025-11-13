@@ -26,6 +26,10 @@ USE_TOR = os.environ.get('USE_TOR', 'false').lower() == 'true'
 TOR_PROXY_HOST = os.environ.get('TOR_PROXY_HOST', '127.0.0.1')
 TOR_PROXY_PORT = os.environ.get('TOR_PROXY_PORT', '9050')
 
+# Hidden Service Configuration
+HIDDEN_SERVICE_ADDRESS = os.environ.get('HIDDEN_SERVICE_ADDRESS', 'unknown.onion')
+HIDDEN_SERVICE_NAME = os.environ.get('HIDDEN_SERVICE_NAME', 'default')
+
 # Notification Configuration
 ENABLE_TELEGRAM = os.environ.get('ENABLE_TELEGRAM_NOTIFICATIONS', 'true').lower() == 'true'
 NOTIFY_ON_SUCCESS = os.environ.get('TELEGRAM_NOTIFY_ON_SUCCESS', 'true').lower() == 'true'
@@ -36,6 +40,11 @@ api_url_base = "https://api.github.com/repos/"
 tracked_repos = "tracked_repos.txt"
 git_repo_base = "https://github.com/"
 datajson = "data.json"
+
+# Reports directory
+reports_dir = "reports"
+if not os.path.exists(reports_dir):
+    os.makedirs(reports_dir)
 
 jsonhead = '{"data" : ['
 jsonfoot = ']}'
@@ -91,6 +100,200 @@ def contains_binary(root):
         print(f"[!] Error checking for binaries: {str(e)}")
     
     return hasBinaryList
+
+
+def extract_credentials(root):
+    """Extract potential credentials from repository files"""
+    import re
+    
+    credentials = {
+        'usernames': [],
+        'passwords': [],
+        'api_keys': [],
+        'tokens': [],
+        'urls': [],
+        'emails': [],
+        'other_sensitive': []
+    }
+    
+    # Patterns for credential detection
+    patterns = {
+        'username': [
+            r'username["\s:=]+([^\s\'"]+)',
+            r'user["\s:=]+([^\s\'"]+)',
+            r'login["\s:=]+([^\s\'"]+)',
+        ],
+        'password': [
+            r'password["\s:=]+([^\s\'"]+)',
+            r'passwd["\s:=]+([^\s\'"]+)',
+            r'pwd["\s:=]+([^\s\'"]+)',
+        ],
+        'api_key': [
+            r'api[_-]?key["\s:=]+([^\s\'"]+)',
+            r'apikey["\s:=]+([^\s\'"]+)',
+        ],
+        'token': [
+            r'token["\s:=]+([^\s\'"]+)',
+            r'auth[_-]?token["\s:=]+([^\s\'"]+)',
+            r'access[_-]?token["\s:=]+([^\s\'"]+)',
+        ],
+        'email': [
+            r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+        ],
+    }
+    
+    searchable_extensions = ['.txt', '.conf', '.config', '.ini', '.env', '.yml', '.yaml', 
+                            '.json', '.xml', '.properties', '.sh', '.bat', '.ps1', '.py', 
+                            '.js', '.php', '.java', '.c', '.cpp', '.cs', '.rb', '.go']
+    
+    try:
+        for dirpath, dirnames, filenames in os.walk(root):
+            # Skip .git directory
+            if '.git' in dirpath:
+                continue
+            
+            for filename in filenames:
+                # Only search text-based files
+                if not any(filename.endswith(ext) for ext in searchable_extensions):
+                    continue
+                
+                filepath = os.path.join(dirpath, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                        
+                        # Search for usernames
+                        for pattern in patterns['username']:
+                            matches = re.findall(pattern, content, re.IGNORECASE)
+                            credentials['usernames'].extend([m for m in matches if len(m) > 2 and len(m) < 50])
+                        
+                        # Search for passwords
+                        for pattern in patterns['password']:
+                            matches = re.findall(pattern, content, re.IGNORECASE)
+                            credentials['passwords'].extend([m for m in matches if len(m) > 2 and len(m) < 50])
+                        
+                        # Search for API keys
+                        for pattern in patterns['api_key']:
+                            matches = re.findall(pattern, content, re.IGNORECASE)
+                            credentials['api_keys'].extend([m for m in matches if len(m) > 10 and len(m) < 100])
+                        
+                        # Search for tokens
+                        for pattern in patterns['token']:
+                            matches = re.findall(pattern, content, re.IGNORECASE)
+                            credentials['tokens'].extend([m for m in matches if len(m) > 10 and len(m) < 100])
+                        
+                        # Search for emails
+                        for pattern in patterns['email']:
+                            matches = re.findall(pattern, content)
+                            credentials['emails'].extend(matches)
+                        
+                except Exception as e:
+                    continue
+                    
+    except Exception as e:
+        print(f"[!] Error extracting credentials: {str(e)}")
+    
+    # Remove duplicates and clean up
+    for key in credentials:
+        credentials[key] = list(set(credentials[key]))
+        # Remove common false positives
+        credentials[key] = [item for item in credentials[key] if item.lower() not in 
+                           ['example', 'test', 'admin', 'root', 'user', 'password', 'your_', 'your-', 'xxx', '***']]
+    
+    return credentials
+
+
+def save_credentials_report(project_name, credentials, repo_data):
+    """Save credentials to a JSON report file"""
+    report_filename = os.path.join(reports_dir, f"{project_name.replace('/', '_')}_report.json")
+    
+    report_data = {
+        'timestamp': datetime.now().isoformat(),
+        'hidden_service': HIDDEN_SERVICE_ADDRESS,
+        'hidden_service_name': HIDDEN_SERVICE_NAME,
+        'project': project_name,
+        'credentials': credentials,
+        'repository_info': {
+            'full_name': repo_data.get('full_name', ''),
+            'description': repo_data.get('description', ''),
+            'html_url': repo_data.get('html_url', ''),
+            'created_at': repo_data.get('created_at', ''),
+            'updated_at': repo_data.get('updated_at', ''),
+            'stargazers_count': repo_data.get('stargazers_count', 0),
+        }
+    }
+    
+    try:
+        with open(report_filename, 'w') as f:
+            json.dump(report_data, f, indent=2)
+        print(f"[+] Saved report to: {report_filename}")
+        return report_filename
+    except Exception as e:
+        print(f"[!] Error saving report: {str(e)}")
+        return None
+
+
+def send_credentials_telegram(project_name, credentials):
+    """Send credentials information via Telegram"""
+    if not ENABLE_TELEGRAM:
+        return
+    
+    # Count findings
+    total_findings = sum(len(v) for v in credentials.values())
+    
+    if total_findings == 0:
+        return  # Don't send if no credentials found
+    
+    message = f"🔐 <b>Credentials Found</b>\n\n"
+    message += f"🧅 <b>Hidden Service:</b> {HIDDEN_SERVICE_NAME}\n"
+    message += f"📍 <b>Address:</b> {HIDDEN_SERVICE_ADDRESS}\n"
+    message += f"📦 <b>Project:</b> {project_name}\n\n"
+    
+    if credentials['usernames']:
+        message += f"👤 <b>Usernames ({len(credentials['usernames'])}):</b>\n"
+        for username in credentials['usernames'][:5]:  # Limit to first 5
+            message += f"  • {username}\n"
+        if len(credentials['usernames']) > 5:
+            message += f"  • ... and {len(credentials['usernames']) - 5} more\n"
+        message += "\n"
+    
+    if credentials['passwords']:
+        message += f"🔑 <b>Passwords ({len(credentials['passwords'])}):</b>\n"
+        for password in credentials['passwords'][:5]:
+            message += f"  • {password}\n"
+        if len(credentials['passwords']) > 5:
+            message += f"  • ... and {len(credentials['passwords']) - 5} more\n"
+        message += "\n"
+    
+    if credentials['api_keys']:
+        message += f"🔐 <b>API Keys ({len(credentials['api_keys'])}):</b>\n"
+        for key in credentials['api_keys'][:3]:
+            # Mask part of the key for security
+            masked = key[:10] + "..." + key[-5:] if len(key) > 15 else key
+            message += f"  • {masked}\n"
+        if len(credentials['api_keys']) > 3:
+            message += f"  • ... and {len(credentials['api_keys']) - 3} more\n"
+        message += "\n"
+    
+    if credentials['tokens']:
+        message += f"🎫 <b>Tokens ({len(credentials['tokens'])}):</b>\n"
+        for token in credentials['tokens'][:3]:
+            masked = token[:10] + "..." + token[-5:] if len(token) > 15 else token
+            message += f"  • {masked}\n"
+        if len(credentials['tokens']) > 3:
+            message += f"  • ... and {len(credentials['tokens']) - 3} more\n"
+        message += "\n"
+    
+    if credentials['emails']:
+        message += f"📧 <b>Emails ({len(credentials['emails'])}):</b>\n"
+        for email in credentials['emails'][:5]:
+            message += f"  • {email}\n"
+        if len(credentials['emails']) > 5:
+            message += f"  • ... and {len(credentials['emails']) - 5} more\n"
+    
+    message += f"\n💾 Full report saved in reports directory"
+    
+    send_telegram_message(message)
 
 
 def main():
@@ -194,6 +397,16 @@ def main():
                     
                     # Add custom category field to JSON
                     repo_data_json['category'] = category
+                    
+                    # Extract credentials from repository
+                    print(f"[*] Extracting credentials from {project}...")
+                    credentials = extract_credentials(projectPath)
+                    
+                    # Save credentials report
+                    report_file = save_credentials_report(project, credentials, repo_data_json)
+                    
+                    # Send Telegram notification if credentials found
+                    send_credentials_telegram(project, credentials)
                     
                     # Add JSON to array
                     repo_data_json_text = json.dumps(repo_data_json)
